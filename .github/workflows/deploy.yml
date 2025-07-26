@@ -1,14 +1,15 @@
-name: Deploy to EKS with Terraform and Helmfile
+name: Deploy EKS Cluster
 
 on:
   push:
     branches:
-      - dev
-      - stage
+      - main
 
 env:
-  TF_VERSION: 1.8.0
+  CLUSTER_NAME: hello-eks
   AWS_REGION: us-east-1
+  ENVIRONMENT: dev
+  TF_VERSION: 1.8.0
   HELM_VERSION: v3.14.0
   HELMFILE_VERSION: v0.155.0
   SOPS_VERSION: 3.8.1
@@ -16,15 +17,17 @@ env:
 
 jobs:
   deploy:
-    name: Terraform & Helmfile Deployment
+    name: Deploy EKS
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set ENVIRONMENT from branch
-        run: echo "ENVIRONMENT=${GITHUB_REF##*/}" >> $GITHUB_ENV
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -33,66 +36,56 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
+      - name: Clean up existing nodegroups (if any)
+        run: |
+          echo "Checking for existing nodegroups in cluster $CLUSTER_NAME..."
+          NODEGROUPS=$(aws eks list-nodegroups --cluster-name "$CLUSTER_NAME" --query "nodegroups" --output text || echo "")
+          if [ -n "$NODEGROUPS" ]; then
+            for NG in $NODEGROUPS; do
+              echo "Deleting nodegroup: $NG"
+              aws eks delete-nodegroup --cluster-name "$CLUSTER_NAME" --nodegroup-name "$NG"
+              echo "Waiting for nodegroup $NG to be deleted..."
+              aws eks wait nodegroup-deleted --cluster-name "$CLUSTER_NAME" --nodegroup-name "$NG"
+            done
+          else
+            echo "No nodegroups found."
+          fi
 
-      - name: Terraform Init
-        working-directory: terraform/eks
-        run: terraform init
+      - name: Setup environment variables for OIDC
+        id: oidc-info
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          OIDC_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --query "cluster.identity.oidc.issuer" --output text | awk -F'/' '{print $NF}')
+          echo "account_id=$ACCOUNT_ID" >> $GITHUB_OUTPUT
+          echo "oidc_id=$OIDC_ID" >> $GITHUB_OUTPUT
 
       - name: Import existing OIDC provider (if exists)
         working-directory: terraform/eks
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
-          CLUSTER_NAME="hello-eks"
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          OIDC_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --query "cluster.identity.oidc.issuer" --output text | awk -F'/' '{print $NF}')
-          OIDC_ARN="arn:aws:iam::$ACCOUNT_ID:oidc-provider/oidc.eks.${AWS_REGION}.amazonaws.com/id/${OIDC_ID}"
-
+          OIDC_ARN="arn:aws:iam::${{ steps.oidc-info.outputs.account_id }}:oidc-provider/oidc.eks.${{ env.AWS_REGION }}.amazonaws.com/id/${{ steps.oidc-info.outputs.oidc_id }}"
           echo "Checking if OIDC provider $OIDC_ARN exists..."
           if aws iam get-open-id-connect-provider --open-id-connect-provider-arn $OIDC_ARN > /dev/null 2>&1; then
             echo "OIDC provider exists, importing to Terraform..."
-            terraform import "module.eks.aws_iam_openid_connect_provider.oidc" "$OIDC_ARN" || true
+            terraform init -upgrade
+            terraform import "module.eks.module.eks.aws_iam_openid_connect_provider.oidc_provider[0]" "$OIDC_ARN" || true
           else
-            echo "OIDC provider does not exist yet, continuing without import."
+            echo "OIDC provider does not exist yet. Continuing."
           fi
+
+      - name: Terraform Init
+        working-directory: terraform/eks
+        run: terraform init -upgrade
 
       - name: Terraform Apply
         working-directory: terraform/eks
         run: terraform apply -auto-approve
 
-      - name: Install Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: ${{ env.HELM_VERSION }}
-
-      - name: Install Helmfile
+      - name: Install Helm & Helmfile
         run: |
-          VERSION_CLEAN=${HELMFILE_VERSION#v} 
-          curl -L "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${VERSION_CLEAN}_linux_amd64.tar.gz" -o helmfile.tar.gz
-          tar -xzf helmfile.tar.gz
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          curl -L https://github.com/helmfile/helmfile/releases/download/${{ env.HELMFILE_VERSION }}/helmfile_${{ env.HELMFILE_VERSION }}_linux_amd64.tar.gz | tar xz
           sudo mv helmfile /usr/local/bin/
 
-      - name: Install SOPS
+      - name: Helmfile Deploy
         run: |
-          curl -L https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64 -o sops
-          chmod +x sops
-          sudo mv sops /usr/local/bin/sops
-
-      - name: Create SOPS key
-        run: |
-          echo "${{ secrets.SOPS_AGE_KEY }}" > $AGE_KEY_FILE
-          export SOPS_AGE_KEY_FILE=$AGE_KEY_FILE
-
-      - name: Decrypt secrets
-        run: |
-          export SOPS_AGE_KEY_FILE=$AGE_KEY_FILE
-          sops -d secrets/${{ env.ENVIRONMENT }}-secrets.yaml > secrets.dec.yaml
-
-      - name: Deploy with Helmfile
-        run: |
-          export SOPS_AGE_KEY_FILE=$AGE_KEY_FILE
           helmfile -e $ENVIRONMENT apply
