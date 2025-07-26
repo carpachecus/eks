@@ -42,22 +42,15 @@ jobs:
         working-directory: terraform/eks
         run: terraform init
 
-      - name: Import existing OIDC provider (if exists)
+      - name: Check EKS cluster and OIDC readiness
         working-directory: terraform/eks
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
           CLUSTER_NAME="hello-eks"
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          OIDC_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --query "cluster.identity.oidc.issuer" --output text | awk -F'/' '{print $NF}')
-          OIDC_ARN="arn:aws:iam::$ACCOUNT_ID:oidc-provider/oidc.eks.${AWS_REGION}.amazonaws.com/id/${OIDC_ID}"
-
-          echo "Checking if OIDC provider $OIDC_ARN exists..."
-          if aws iam get-open-id-connect-provider --open-id-connect-provider-arn $OIDC_ARN > /dev/null 2>&1; then
-            echo "OIDC provider exists, importing to Terraform..."
-            terraform import "module.eks.aws_iam_openid_connect_provider.oidc" "$OIDC_ARN" || true
+          echo "Verificando que el cluster $CLUSTER_NAME exista..."
+          if ! aws eks describe-cluster --name $CLUSTER_NAME > /dev/null 2>&1; then
+            echo "El cluster aún no existe. Terraform lo creará."
           else
-            echo "OIDC provider does not exist yet, continuing without import."
+            echo "Cluster $CLUSTER_NAME ya existe."
           fi
 
       - name: Terraform Apply
@@ -91,11 +84,6 @@ jobs:
         run: |
           export SOPS_AGE_KEY_FILE=$AGE_KEY_FILE
           sops -d secrets/${{ env.ENVIRONMENT }}-secrets.yaml > secrets.dec.yaml
-
-      - name: Configure kubectl
-        run: |
-          aws eks update-kubeconfig --name hello-eks --region $AWS_REGION
-          kubectl get nodes
 
       - name: Deploy with Helmfile
         run: |
