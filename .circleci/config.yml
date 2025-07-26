@@ -1,0 +1,41 @@
+version: 2.1
+
+parameters:
+  environment:
+    type: string
+    default: "dev"
+
+jobs:
+  deploy:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Instalar Helm y Helmfile
+          command: |
+            curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+            curl -LO https://github.com/helmfile/helmfile/releases/download/v0.155.0/helmfile_0.155.0_linux_amd64.tar.gz
+            tar -xzf helmfile_0.155.0_linux_amd64.tar.gz
+            sudo mv helmfile /usr/local/bin/
+      - run:
+          name: Desplegar con Helmfile en << pipeline.parameters.environment >>
+          command: |
+            export ENVIRONMENT=<< pipeline.parameters.environment >>
+            helmfile -e $ENVIRONMENT apply
+
+workflows:
+  deploy_flow:
+    jobs:
+      - deploy:
+          name: deploy-dev
+          environment: dev
+          filters:
+            branches:
+              only: dev
+      - deploy:
+          name: deploy-stage
+          environment: stage
+          filters:
+            branches:
+              only: main
