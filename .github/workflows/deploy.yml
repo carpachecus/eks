@@ -1,0 +1,78 @@
+name: Deploy to EKS with Terraform and Helmfile
+
+on:
+  push:
+    branches:
+      - dev
+      - stage
+
+env:
+  TF_VERSION: 1.8.0
+  AWS_REGION: us-east-1
+  HELM_VERSION: v3.14.0
+  HELMFILE_VERSION: v0.155.0
+  SOPS_VERSION: 3.8.1
+  AGE_KEY_FILE: .sops.age.key
+
+jobs:
+  deploy:
+    name: Terraform & Helmfile Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set ENVIRONMENT from branch
+        run: echo "ENVIRONMENT=${GITHUB_REF##*/}" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: terraform/eks
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform/eks
+        run: terraform apply -auto-approve
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Install Helmfile
+        run: |
+          curl -L https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION}_linux_amd64.tar.gz | tar xz
+          sudo mv helmfile /usr/local/bin/
+
+      - name: Install SOPS
+        run: |
+          curl -L https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64 -o sops
+          chmod +x sops
+          sudo mv sops /usr/local/bin/sops
+
+      - name: Create SOPS key
+        run: |
+          echo "${{ secrets.SOPS_AGE_KEY }}" > $AGE_KEY_FILE
+          export SOPS_AGE_KEY_FILE=$AGE_KEY_FILE
+
+      - name: Decrypt secrets
+        run: |
+          export SOPS_AGE_KEY_FILE=$AGE_KEY_FILE
+          sops -d secrets/${{ env.ENVIRONMENT }}-secrets.yaml > secrets.dec.yaml
+
+      - name: Deploy with Helmfile
+        run: |
+          export SOPS_AGE_KEY_FILE=$AGE_KEY_FILE
+          helmfile -e $ENVIRONMENT apply
