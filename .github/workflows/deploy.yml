@@ -42,33 +42,23 @@ jobs:
         working-directory: terraform/eks
         run: terraform init
 
-      - name: Check and clean nodegroups before Terraform Apply
+      - name: Import existing OIDC provider (if exists)
+        working-directory: terraform/eks
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
-          CLUSTER_NAME=hello-eks
-          REGION=${{ env.AWS_REGION }}
+          CLUSTER_NAME="hello-eks"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          OIDC_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --query "cluster.identity.oidc.issuer" --output text | awk -F'/' '{print $NF}')
+          OIDC_ARN="arn:aws:iam::$ACCOUNT_ID:oidc-provider/oidc.eks.${AWS_REGION}.amazonaws.com/id/${OIDC_ID}"
 
-          echo "Checking if EKS cluster '$CLUSTER_NAME' exists..."
-          if aws eks describe-cluster --name "$CLUSTER_NAME" --region "$REGION" >/dev/null 2>&1; then
-            echo "Cluster exists. Listing nodegroups..."
-            NODEGROUPS=$(aws eks list-nodegroups --cluster-name "$CLUSTER_NAME" --region "$REGION" --output text || echo "")
-
-            if [ -z "$NODEGROUPS" ]; then
-              echo "No nodegroups to delete."
-            else
-              for NG in $NODEGROUPS; do
-                echo "Deleting nodegroup: $NG"
-                aws eks delete-nodegroup --cluster-name "$CLUSTER_NAME" --nodegroup-name "$NG" --region "$REGION" || true
-
-                echo "Waiting for nodegroup $NG to be deleted..."
-                while aws eks describe-nodegroup --cluster-name "$CLUSTER_NAME" --nodegroup-name "$NG" --region "$REGION" >/dev/null 2>&1; do
-                  sleep 10
-                done
-              done
-            fi
+          echo "Checking if OIDC provider $OIDC_ARN exists..."
+          if aws iam get-open-id-connect-provider --open-id-connect-provider-arn $OIDC_ARN > /dev/null 2>&1; then
+            echo "OIDC provider exists, importing to Terraform..."
+            terraform import "module.eks.aws_iam_openid_connect_provider.oidc" "$OIDC_ARN" || true
           else
-            echo "Cluster does not exist yet. Skipping nodegroup cleanup."
+            echo "OIDC provider does not exist yet, continuing without import."
           fi
-        continue-on-error: true
 
       - name: Terraform Apply
         working-directory: terraform/eks
