@@ -1,0 +1,6 @@
+creation_rules:
+  - encrypted_regex: ^(secretValue)$
+    key_groups:
+      - age:
+          - age1e22fgd82mprcl75a8kneetxfezrnyp9d0cwmf8h202hqhd6x5vuq7hwdzl
+

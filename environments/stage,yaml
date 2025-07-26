@@ -1,0 +1,4 @@
+values:
+  - ../charts/hello-app/values.yaml
+  - environment: stage
+  - secrets/stage-secrets.yaml

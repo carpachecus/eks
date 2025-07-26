@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-app
+  template:
+    metadata:
+      labels:
+        app: hello-app
+    spec:
+      containers:
+        - name: hello
+          image: nginxdemos/hello
+          env:
+            - name: ENVIRONMENT
+              value: {{ .Values.environment }}
+            - name: SECRET_MESSAGE
+              valueFrom:
+                secretKeyRef:
+                  name: hello-secret
+                  key: secretValue

@@ -1,0 +1,14 @@
+replicaCount: 1
+
+image:
+  repository: nginxdemos/hello
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+environment: dev
+
+secretValue: "Mensaje secreto para dev"

@@ -1,0 +1,14 @@
+environments:
+  dev:
+    values:
+      - values/dev-values.yaml
+      - secrets/dev-secrets.yaml  # este es el archivo cifrado
+
+---
+
+releases:
+  - name: hello-app
+    namespace: default
+    chart: ./charts/hello-app
+    values:
+      - charts/hello-app/values.yaml
