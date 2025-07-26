@@ -53,6 +53,19 @@ jobs:
             echo "Cluster $CLUSTER_NAME ya existe."
           fi
 
+      - name: Check & Import OIDC provider if not managed
+        working-directory: terraform/eks
+        run: |
+          OIDC_ARN="arn:aws:iam::585768155983:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/309AFEFA1887AB6323F01F647F796115"
+          RESOURCE_ADDR='module.eks.aws_iam_openid_connect_provider.oidc_provider[0]'
+          echo "Verificando si el recurso OIDC ya está importado..."
+          if terraform state list | grep "$RESOURCE_ADDR" > /dev/null 2>&1; then
+            echo "El recurso OIDC ya está en el estado de Terraform."
+          else
+            echo "Importando recurso OIDC..."
+            terraform import "$RESOURCE_ADDR" "$OIDC_ARN"
+          fi
+
       - name: Terraform Apply
         working-directory: terraform/eks
         run: terraform apply -auto-approve
