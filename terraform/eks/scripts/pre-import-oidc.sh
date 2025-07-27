@@ -1,23 +1,20 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+OIDC_PROVIDER_ARN=$(aws eks describe-cluster \
+  --name "$CLUSTER_NAME" \
+  --region "$AWS_REGION" \
+  --query "cluster.identity.oidc.issuer" \
+  --output text | sed 's/^https:\/\///')
 
-RESOURCE="module.eks.aws_iam_openid_connect_provider.oidc_provider[0]"
-REGION="${AWS_REGION:-us-east-1}"
+TF_ADDRESS="module.eks.aws_iam_openid_connect_provider.oidc_provider[0]"
 
 echo "🔍 Verificando si OIDC ya está en el estado de Terraform..."
 
-if terraform state list | grep -q "$RESOURCE"; then
-  echo "✅ El OIDC provider YA está gestionado por Terraform. Saltando import..."
-  exit 0
+if terraform state list | grep -q "$TF_ADDRESS"; then
+  echo "✅ OIDC ya está gestionado por Terraform. No se necesita importar."
+else
+  echo "🚀 Importando OIDC al estado..."
+  terraform import "$TF_ADDRESS" "arn:aws:iam::$AWS_ACCOUNT_ID:oidc-provider/${OIDC_PROVIDER_ARN}"
 fi
 
-echo "🚀 Importando OIDC provider al estado..."
-
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-OIDC_URL=$(aws eks describe-cluster --name hello-eks --region "$REGION" --query "cluster.identity.oidc.issuer" --output text)
-OIDC_ID=$(echo "$OIDC_URL" | awk -F'/' '{print $NF}')
-OIDC_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/oidc.eks.${REGION}.amazonaws.com/id/${OIDC_ID}"
-
-terraform import "$RESOURCE" "$OIDC_ARN"
