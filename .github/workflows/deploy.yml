@@ -71,6 +71,10 @@ jobs:
         run: |
           terraform plan -out=tfplan || echo "No changes to apply"
 
+      - name: Ensure OIDC is imported
+        run: ./scripts/pre-import-oidc.sh
+
+         
       - name: Terraform Apply Plan
         working-directory: terraform/eks
         run: |
