@@ -75,7 +75,7 @@ jobs:
         run:  |
           bash terraform/eks/scripts/pre-import-oidc.sh
             env:
-            CLUSTER_NAME="hello-eks"
+            CLUSTER_NAME= hello-eks
 
 
          
