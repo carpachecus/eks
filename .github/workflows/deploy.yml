@@ -54,7 +54,6 @@ jobs:
           OIDC_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/oidc.eks.${REGION}.amazonaws.com/id/${OIDC_ID}"
 
           echo "Checking if Terraform is already managing OIDC provider..."
-
           terraform state list | grep "module.eks.aws_iam_openid_connect_provider.oidc_provider" && echo "OIDC already managed by Terraform." && exit 0
 
           echo "Checking if OIDC provider exists in AWS..."
@@ -65,9 +64,21 @@ jobs:
             echo "OIDC provider does not exist. Terraform will create it."
           fi
 
-      - name: Terraform Apply
+      - name: Terraform Plan
+        id: tfplan
         working-directory: terraform/eks
-        run: terraform apply -auto-approve
+        continue-on-error: true
+        run: |
+          terraform plan -out=tfplan || echo "No changes to apply"
+
+      - name: Terraform Apply Plan
+        working-directory: terraform/eks
+        run: |
+          if [ -f tfplan ]; then
+            terraform apply -auto-approve tfplan
+          else
+            echo "Skipping apply. No tfplan file found (no changes)."
+          fi
 
       - name: Install Helm
         uses: azure/setup-helm@v3
