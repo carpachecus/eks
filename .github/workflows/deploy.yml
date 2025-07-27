@@ -41,30 +41,29 @@ jobs:
       - name: Terraform Init
         working-directory: terraform/eks
         run: terraform init
-     
-      - name: Importar OIDC si ya existe
+
+      - name: Import OIDC if it already exists
         working-directory: terraform/eks
         run: |
+          set -e
           CLUSTER_NAME="hello-eks"
-          REGION="us-east-1"
+          REGION="${{ env.AWS_REGION }}"
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          OIDC_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region $REGION --query "cluster.identity.oidc.issuer" --output text | awk -F'/' '{print $NF}')
+          OIDC_URL=$(aws eks describe-cluster --name $CLUSTER_NAME --region $REGION --query "cluster.identity.oidc.issuer" --output text)
+          OIDC_ID=$(echo "$OIDC_URL" | awk -F'/' '{print $NF}')
           OIDC_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/oidc.eks.${REGION}.amazonaws.com/id/${OIDC_ID}"
 
-          echo "Verificando si Terraform ya maneja el recurso OIDC..."
+          echo "Checking if Terraform is already managing OIDC provider..."
 
-          if terraform state list | grep -q "module.eks.aws_iam_openid_connect_provider.oidc_provider"; then
-          echo "OIDC ya está en el estado de Terraform. Nada que hacer."
-          else
-          echo "Verificando si el OIDC ya existe en AWS..."
+          terraform state list | grep "module.eks.aws_iam_openid_connect_provider.oidc_provider" && echo "OIDC already managed by Terraform." && exit 0
+
+          echo "Checking if OIDC provider exists in AWS..."
           if aws iam get-open-id-connect-provider --open-id-connect-provider-arn "$OIDC_ARN" > /dev/null 2>&1; then
-          echo "Importando OIDC a Terraform..."
-          terraform import "module.eks.aws_iam_openid_connect_provider.oidc_provider[0]" "$OIDC_ARN"
+            echo "Importing OIDC provider into Terraform state..."
+            terraform import "module.eks.aws_iam_openid_connect_provider.oidc_provider[0]" "$OIDC_ARN"
           else
-          echo "OIDC no existe en AWS. Terraform lo creará."
-            fi
+            echo "OIDC provider does not exist. Terraform will create it."
           fi
-
 
       - name: Terraform Apply
         working-directory: terraform/eks
@@ -77,7 +76,7 @@ jobs:
 
       - name: Install Helmfile
         run: |
-          VERSION_CLEAN=${HELMFILE_VERSION#v} 
+          VERSION_CLEAN=${HELMFILE_VERSION#v}
           curl -L "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${VERSION_CLEAN}_linux_amd64.tar.gz" -o helmfile.tar.gz
           tar -xzf helmfile.tar.gz
           sudo mv helmfile /usr/local/bin/
