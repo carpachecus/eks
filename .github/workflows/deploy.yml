@@ -72,7 +72,10 @@ jobs:
           terraform plan -out=tfplan || echo "No changes to apply"
 
       - name: Ensure OIDC is imported
-        run: bash terraform/eks/scripts/pre-import-oidc.sh
+        run:  |
+          bash terraform/eks/scripts/pre-import-oidc.sh
+            env:
+            CLUSTER_NAME="hello-eks"
 
 
          
