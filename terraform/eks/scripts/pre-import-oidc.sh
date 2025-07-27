@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+# Cambiar al directorio correcto
+cd "$(dirname "$0")/.."
+
 # CONFIG
 CLUSTER_NAME="hello-eks"
 REGION="us-east-1"
