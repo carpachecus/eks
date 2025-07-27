@@ -1,35 +1,30 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 set -euo pipefail
 
-# CONFIG
-CLUSTER_NAME="hello-eks"
-REGION="us-east-1"
+# Ruta base del módulo EKS
+cd "$(dirname "$0")/.."
 
-# Obtener información de cuenta
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-# Obtener el OIDC URL desde EKS
-OIDC_URL=$(aws eks describe-cluster \
-  --name "$CLUSTER_NAME" \
-  --region "$REGION" \
-  --query "cluster.identity.oidc.issuer" \
-  --output text)
-
-# Extraer el ID final del OIDC URL
-OIDC_ID=$(echo "$OIDC_URL" | awk -F'/' '{print $NF}')
-
-# Construir el ARN
-OIDC_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/oidc.eks.${REGION}.amazonaws.com/id/${OIDC_ID}"
-
-# Nombre del recurso en Terraform
-TF_RESOURCE="module.eks.aws_iam_openid_connect_provider.oidc_provider[0]"
+# Parámetros y constantes
+RESOURCE="module.eks.aws_iam_openid_connect_provider.oidc_provider[0]"
+REGION="${AWS_REGION:-us-east-1}"
 
 echo "🔍 Verificando si OIDC ya está en el estado de Terraform..."
-if terraform state list | grep -q "$TF_RESOURCE"; then
-  echo "✅ OIDC provider ya existe en Terraform state: $TF_RESOURCE"
+
+# Verifica si el recurso ya está presente en el estado
+if terraform state list | grep -q "$RESOURCE"; then
+  echo "✅ El OIDC provider ya está gestionado por Terraform. No es necesario importarlo."
 else
   echo "🚀 Importando OIDC provider al estado..."
-  terraform import "$TF_RESOURCE" "$OIDC_ARN"
-  echo "✅ Importación exitosa."
+
+  # Obtiene el ID de cuenta y el ID del OIDC issuer desde Terraform outputs
+  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  OIDC_ID=$(terraform output -raw cluster_oidc_issuer_id)
+
+  if [[ -z "$OIDC_ID" ]]; then
+    echo "❌ No se pudo obtener el OIDC ID desde los outputs de Terraform. Asegúrate de tener un output 'cluster_oidc_issuer_id'."
+    exit 1
+  fi
+
+  terraform import "$RESOURCE" \
+    "arn:aws:iam::${ACCOUNT_ID}:oidc-provider/oidc.eks.${REGION}.amazonaws.com/id/${OIDC_ID}"
 fi
