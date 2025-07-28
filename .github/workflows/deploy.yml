@@ -87,7 +87,7 @@ jobs:
           else
           echo "✅ No hay OIDC Provider duplicado. Continuando..."
           fi
-            env:
+        env:
             CLUSTER_NAME: hello-eks
             AWS_REGION: us-east-1
 
