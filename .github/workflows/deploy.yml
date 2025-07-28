@@ -91,6 +91,34 @@ jobs:
             echo "Skipping apply. No tfplan file found (no changes)."
           fi
 
+      - name: 🛡️ Agregar IAM role de GitHub Actions al aws-auth
+        run: |
+          aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+          echo "Verificando acceso al clúster..."
+          kubectl get nodes || true
+
+          echo "Descargando aws-auth..."
+          kubectl get configmap aws-auth -n kube-system -o yaml > aws-auth.yaml
+
+          if grep -q "$GITHUB_ROLE_ARN" aws-auth.yaml; then
+          echo "✅ El rol ya está presente en aws-auth"
+          else
+          echo "➕ Agregando el rol al aws-auth"
+          cat <<EOF >> aws-auth.yaml
+          
+          data:
+            mapRoles: |
+              - rolearn: $GITHUB_ROLE_ARN
+                username: github-actions
+                groups:
+                  - system:masters
+              EOF
+              kubectl apply -f aws-auth.yaml
+              fi
+        env:
+          GITHUB_ROLE_ARN: arn:aws:iam::123456789012:role/github-actions-eks-role
+    
+
       - name: Install Helm
         uses: azure/setup-helm@v3
         with:
@@ -131,12 +159,12 @@ jobs:
       - name: Esperar que el cluster EKS esté disponible
         run: |
           echo "⏳ Esperando a que el clúster esté listo..."
-          for i in {1..5}; do
+          for i in {1..2}; do
             if kubectl get nodes &>/dev/null; then
               echo "✅ Clúster EKS disponible."
               break
             fi
-            echo "Esperando 10 segundos... intento $i/5"
+            echo "Esperando 10 segundos... intento $i/2"
             sleep 10
           done
           if ! kubectl get nodes &>/dev/null; then
