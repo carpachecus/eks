@@ -42,27 +42,7 @@ jobs:
         working-directory: terraform/eks
         run: terraform init
 
-      - name: Import OIDC if it already exists
-        working-directory: terraform/eks
-        run: |
-          set -e
-          CLUSTER_NAME="hello-eks"
-          REGION="${{ env.AWS_REGION }}"
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          OIDC_URL=$(aws eks describe-cluster --name $CLUSTER_NAME --region $REGION --query "cluster.identity.oidc.issuer" --output text)
-          OIDC_ID=$(echo "$OIDC_URL" | awk -F'/' '{print $NF}')
-          OIDC_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/oidc.eks.${REGION}.amazonaws.com/id/${OIDC_ID}"
-
-          echo "Checking if Terraform is already managing OIDC provider..."
-          terraform state list | grep "module.eks.aws_iam_openid_connect_provider.oidc_provider" && echo "OIDC already managed by Terraform." && exit 0
-
-          echo "Checking if OIDC provider exists in AWS..."
-          if aws iam get-open-id-connect-provider --open-id-connect-provider-arn "$OIDC_ARN" > /dev/null 2>&1; then
-            echo "Importing OIDC provider into Terraform state..."
-            terraform import "module.eks.aws_iam_openid_connect_provider.oidc_provider[0]" "$OIDC_ARN"
-          else
-            echo "OIDC provider does not exist. Terraform will create it."
-          fi
+     
 
       - name: Terraform Plan
         id: tfplan
