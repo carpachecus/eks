@@ -71,23 +71,25 @@ jobs:
           fi
 
           OIDC_SUFFIX=$(echo "$OIDC_URL" | sed 's|https://||')
-    
-          OIDC_ARN=$(aws iam list-open-id-connect-providers \
+
+          EXISTING_OIDC_ARNS=$(aws iam list-open-id-connect-providers \
           --query "OpenIDConnectProviderList[].Arn" \
           --output text | grep "$OIDC_SUFFIX" || true)
 
-          if [[ -n "$OIDC_ARN" ]]; then
-          echo "⚠️ OIDC Provider existente encontrado: $OIDC_ARN"
-          echo "🔄 Eliminando para evitar conflictos en Terraform apply..."
-          aws iam delete-open-id-connect-provider --open-id-connect-provider-arn "$OIDC_ARN"
-          echo "✅ OIDC Provider eliminado correctamente."
+          if [[ -n "$EXISTING_OIDC_ARNS" ]]; then
+          echo "⚠️ Se encontraron OIDC Providers existentes:"
+          echo "$EXISTING_OIDC_ARNS"
+          for arn in $EXISTING_OIDC_ARNS; do
+          echo "🔄 Eliminando $arn ..."
+          aws iam delete-open-id-connect-provider --open-id-connect-provider-arn "$arn" || echo "⚠️ No se pudo eliminar $arn (posiblemente ya fue eliminado)"
+          done
+          echo "✅ Todos los OIDC Providers eliminados (si existían)."
           else
           echo "✅ No hay OIDC Provider duplicado. Continuando..."
           fi
             env:
             CLUSTER_NAME: hello-eks
             AWS_REGION: us-east-1
-
 
          
       - name: Terraform Apply Plan
