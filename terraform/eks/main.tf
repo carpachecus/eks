@@ -40,6 +40,16 @@ module "eks" {
     instance_types = ["t3.medium"]
   }
 
+  authentication_mode = "API"  # opcional pero recomendado
+  enable_cluster_creator_admin_permissions = true
+  aws_auth_users = [
+    {
+      userarn  = "arn:aws:iam::585768155983:user/terraform-user"
+      username = "terraform-user"
+      groups   = ["system:masters"]
+    }
+  ]
+
   eks_managed_node_groups = {
     default = {
       min_size     = 1
@@ -56,19 +66,7 @@ module "eks" {
   }
 }
 
-module "aws_auth" {
-  source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
-  version = "20.8.4"
 
-  depends_on = [module.eks]
-
-  eks_cluster_id = module.eks.cluster_name
-
-  aws_auth_users = [
-    {
-      userarn  = "arn:aws:iam::585768155983:user/terraform-user"
-      username = "terraform-user"
-      groups   = ["system:masters"]
     }
   ]
 }
