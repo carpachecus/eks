@@ -60,7 +60,7 @@ jobs:
             --query "cluster.identity.oidc.issuer" \
             --output text || echo "")
           if [[ -z "$OIDC_URL" ]]; then
-            echo "❌ No se pudo obtener el OIDC URL del clúster (posiblemente aún no creado). Saliendo sin acción."
+            echo "❌ No se pudo obtener el OIDC URL del clúster  (posiblemente aún no creado). Saliendo sin acción."
             exit 0
           fi
           OIDC_SUFFIX=$(echo "$OIDC_URL" | sed 's|https://||')
