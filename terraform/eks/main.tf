@@ -36,19 +36,12 @@ module "eks" {
 
   enable_irsa = true
 
+  authentication_mode = "API"
+  enable_cluster_creator_admin_permissions = true
+
   eks_managed_node_group_defaults = {
     instance_types = ["t3.medium"]
   }
-
-  authentication_mode = "API"  # opcional pero recomendado
-  enable_cluster_creator_admin_permissions = true
-  aws_auth_users = [
-    {
-      userarn  = "arn:aws:iam::585768155983:user/terraform-user"
-      username = "terraform-user"
-      groups   = ["system:masters"]
-    }
-  ]
 
   eks_managed_node_groups = {
     default = {
@@ -64,4 +57,16 @@ module "eks" {
     Environment = "dev"
     Terraform   = "true"
   }
+}
+
+resource "aws_eks_access_entry" "terraform_user" {
+  cluster_name   = module.eks.cluster_name
+  principal_arn  = "arn:aws:iam::585768155983:user/terraform-user"
+  type           = "STANDARD"
+
+  access_policies = [
+    {
+      policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+    }
+  ]
 }
