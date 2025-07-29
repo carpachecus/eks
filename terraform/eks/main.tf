@@ -60,14 +60,3 @@ module "eks" {
   }
 }
 
-resource "aws_eks_access_entry" "terraform_user" {
-  cluster_name   = module.eks.cluster_name
-  principal_arn  = "arn:aws:iam::585768155983:user/terraform-user"
-  type           = "STANDARD"
-
-  access_policies = [
-    {
-      policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-    }
-  ]
-}
