@@ -36,8 +36,8 @@ module "eks" {
   create_cloudwatch_log_group = false  # Evita que cree el log group
   create_kms_key = false
 
-  endpoint_public_access = true
-  endpoint_private_access = true
+  cluster_endpoint_public_access  = true
+  cluster_endpoint_private_access = false
 
   enable_irsa = true
 
