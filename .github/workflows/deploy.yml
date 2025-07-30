@@ -158,7 +158,7 @@ jobs:
 
       - name: Esperar que el cluster EKS esté disponible
         run: |
-          echo "⏳ Esperando a que el clúster  esté listo...."
+          echo "⏳ Esperando a que el clúster esté listo...."
           for i in {1..2}; do
             if kubectl get nodes &>/dev/null; then
               echo "✅ Clúster EKS ya disponible."
