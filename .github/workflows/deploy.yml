@@ -53,7 +53,7 @@ jobs:
       - name: Remove existing IAM OIDC Provider if it exists
         run: |
           set -euo pipefail
-          echo "Verificando existencia del OIDC Provider del clúster '$CLUSTER_NAME' en '$AWS_REGION'..."
+          echo "Verificando existencia del OIDC  Provider del clúster '$CLUSTER_NAME' en '$AWS_REGION'..."
           OIDC_URL=$(aws eks describe-cluster \
             --region "$AWS_REGION" \
             --name "$CLUSTER_NAME" \
