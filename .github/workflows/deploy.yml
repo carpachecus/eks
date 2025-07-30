@@ -91,30 +91,7 @@ jobs:
             echo "Skipping apply. No tfplan file found (no changes)."
           fi
 
-      - name: 🛡️ Agregar IAM role de GitHub Actions al aws-auth
-        run: |
-          aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
-          echo "Verificando acceso al clúster..."
-          kubectl get nodes || true
-
-          echo "Descargando aws-auth..."
-          kubectl get configmap aws-auth -n kube-system -o yaml > aws-auth.yaml
-
-          if grep -q "$GITHUB_ROLE_ARN" aws-auth.yaml; then
-          echo "✅ El rol ya está presente en   aws-auth"
-          else
-          echo "➕ Agregando el rol al aws-auth"
-          cat <<EOF >> aws-auth.yaml
-          
-          data:
-            mapRoles: |
-              - rolearn: $GITHUB_ROLE_ARN
-                username: github-actions
-                groups:
-                  - system:masters
-              EOF
-              kubectl apply -f aws-auth.yaml
-              fi
+     
            
 
       - name: Install Helm
