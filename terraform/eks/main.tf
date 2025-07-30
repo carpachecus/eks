@@ -29,6 +29,15 @@ module "vpc" {
   enable_dns_hostnames   = true
   enable_dns_support     = true
 
+ # vpc/outputs.tf
+  output "vpc_id" {
+  value = module.vpc.vpc_id
+  }
+
+  output "public_subnet_ids" {
+  value = module.vpc.public_subnets
+  }
+
   tags = {
     Environment = "dev"
     Terraform   = "true"
