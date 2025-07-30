@@ -32,6 +32,13 @@ module "eks" {
   subnet_ids      = module.vpc.public_subnets
   vpc_id          = module.vpc.vpc_id
 
+  cluster_enabled_log_types = []  # Desactiva logs
+  create_cloudwatch_log_group = false  # Evita que cree el log group
+  create_kms_key = false
+
+  endpoint_public_access = true
+  endpoint_private_access = true
+
   enable_irsa = true
 
   tags = {
