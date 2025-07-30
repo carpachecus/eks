@@ -34,7 +34,10 @@ module "eks" {
 
   cluster_enabled_log_types = []  # Desactiva logs
   create_cloudwatch_log_group = false  # Evita que cree el log group
-  create_kms_key = false
+  
+  create_kms_key               = false
+  cluster_encryption_config    = null
+
 
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = false
