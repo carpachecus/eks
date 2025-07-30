@@ -70,7 +70,7 @@ jobs:
             done
             echo "✅ Todos los OIDC Providers eliminados (si existían)."
           else
-            echo "✅ No hay OIDC Provider duplicado. Continuando..."
+            echo "✅ No hay OIDC Provider duplicado.  Continuando..."
           fi
         env:
           CLUSTER_NAME: hello-app-cluster
