@@ -101,7 +101,7 @@ jobs:
           kubectl get configmap aws-auth -n kube-system -o yaml > aws-auth.yaml
 
           if grep -q "$GITHUB_ROLE_ARN" aws-auth.yaml; then
-          echo "✅ El rol ya está presente en  aws-auth"
+          echo "✅ El rol ya está presente en   aws-auth"
           else
           echo "➕ Agregando el rol al aws-auth"
           cat <<EOF >> aws-auth.yaml
