@@ -125,13 +125,7 @@ jobs:
           export SOPS_AGE_KEY_FILE=$AGE_KEY_FILE
           sops -d secrets/${{ env.ENVIRONMENT }}-secrets.yaml > secrets.dec.yaml
 
-      - name: Configurar acceso a EKS
-        run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
-        env:
-          AWS_REGION: us-east-1
-          CLUSTER_NAME: hello-app-cluster
-
-    
+         
       - name: Deploy with Helmfile
         run: |
           export SOPS_AGE_KEY_FILE=$AGE_KEY_FILE
