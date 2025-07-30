@@ -27,13 +27,7 @@ jobs:
       - name: Set ENVIRONMENT from branch
         run: echo "ENVIRONMENT=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -125,6 +119,15 @@ jobs:
           export SOPS_AGE_KEY_FILE=$AGE_KEY_FILE
           sops -d secrets/${{ env.ENVIRONMENT }}-secrets.yaml > secrets.dec.yaml
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_REGION
          
       - name: Deploy with Helmfile
         run: |
