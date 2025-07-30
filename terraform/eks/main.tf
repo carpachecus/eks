@@ -43,7 +43,7 @@ module "eks" {
   enable_irsa = true
 
   manage_aws_auth_configmap = true
-  authentication_mode        = "API"
+  
 
   aws_auth_users = [
     {
