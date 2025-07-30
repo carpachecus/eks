@@ -50,4 +50,19 @@ module "eks" {
   }
 }
 
+module "aws_auth" {
+  source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
+  version = "20.8.4"
 
+  depends_on = [module.eks]
+
+  cluster_name = module.eks.cluster_name
+
+  map_users = [
+    {
+      userarn  = "arn:aws:iam::585768155983:user/terraform-user"
+      username = "terraform-user"
+      groups   = ["system:masters"]
+    }
+  ]
+}
