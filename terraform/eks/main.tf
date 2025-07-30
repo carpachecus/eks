@@ -44,6 +44,16 @@ module "eks" {
 
   enable_irsa = true
 
+  manage_aws_auth_configmap = true
+
+  aws_auth_users = [
+    {
+      userarn  = "arn:aws:iam::585768155983:user/terraform-user"
+      username = "terraform-user"
+      groups   = ["system:masters"]
+    }
+  ]
+
   tags = {
     Environment = var.environment
     Terraform   = "true"
