@@ -115,9 +115,7 @@ jobs:
               EOF
               kubectl apply -f aws-auth.yaml
               fi
-        env:
-          GITHUB_ROLE_ARN: arn:aws:iam::123456789012:role/github-actions-eks-role
-    
+           
 
       - name: Install Helm
         uses: azure/setup-helm@v3
