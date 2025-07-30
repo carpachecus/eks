@@ -1,28 +1,28 @@
-variable "region" {
-  description = "AWS region"
-  type        = string
-  default     = "us-east-1"
+variable "aws_region" {
+  default = "us-east-1"
+}
+
+variable "vpc_name" {
+  default = "hello-vpc"
+}
+
+variable "vpc_cidr" {
+  default = "10.0.0.0/16"
+}
+
+variable "azs" {
+  default = ["us-east-1a", "us-east-1b"]
+}
+
+variable "public_subnet_cidrs" {
+  default = ["10.0.1.0/24", "10.0.2.0/24"]
 }
 
 variable "cluster_name" {
-  description = "EKS cluster name"
-  type        = string
-  default     = "hello-app-cluster"
+  default = "hello-eks"
 }
 
-variable "cluster_version" {
-  description = "EKS version"
-  type        = string
-  default     = "1.29"
-}
-
-variable "subnet_ids" {
-  description = "List of subnet IDs for the EKS cluster"
-  type        = list(string)
-}
-
-variable "vpc_id" {
-  description = "VPC ID for the EKS cluster"
-  type        = string
+variable "environment" {
+  default = "dev"
 }
 
