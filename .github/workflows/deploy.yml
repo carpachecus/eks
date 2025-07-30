@@ -13,7 +13,7 @@ env:
   HELMFILE_VERSION: v0.155.0
   SOPS_VERSION: 3.8.1
   AGE_KEY_FILE: .sops.age.key
-  CLUSTER_NAME: hello-eks
+  CLUSTER_NAME: hello-app-cluster
 
 jobs:
   deploy:
@@ -79,7 +79,7 @@ jobs:
             echo "✅ No hay OIDC Provider duplicado. Continuando..."
           fi
         env:
-          CLUSTER_NAME: hello-eks
+          CLUSTER_NAME: hello-app-cluster
           AWS_REGION: us-east-1
 
       - name: Terraform Apply Plan
@@ -154,7 +154,7 @@ jobs:
         run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
         env:
           AWS_REGION: us-east-1
-          CLUSTER_NAME: hello-eks
+          CLUSTER_NAME: hello-app-cluster
 
       - name: Esperar que el cluster EKS esté disponible
         run: |
