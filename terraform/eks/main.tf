@@ -32,37 +32,29 @@ module "eks" {
   subnet_ids      = module.vpc.public_subnets
   vpc_id          = module.vpc.vpc_id
 
-  cluster_enabled_log_types = []  # Desactiva logs
-  create_cloudwatch_log_group = false  # Evita que cree el log group
-  
+  cluster_enabled_log_types = []
+  create_cloudwatch_log_group = false
   create_kms_key               = false
-  cluster_encryption_config = {}
-
+  cluster_encryption_config    = {}
 
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = false
 
   enable_irsa = true
 
-  tags = {
-    Environment = var.environment
-    Terraform   = "true"
-  }
-}
+  manage_aws_auth_configmap = true
+  authentication_mode        = "API"
 
-module "aws_auth" {
-  source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
-  version = "20.8.4"
-
-  depends_on = [module.eks]
-
-  cluster_name = module.eks.cluster_name
-
-  map_users = [
+  aws_auth_users = [
     {
       userarn  = "arn:aws:iam::585768155983:user/terraform-user"
       username = "terraform-user"
       groups   = ["system:masters"]
     }
   ]
+
+  tags = {
+    Environment = var.environment
+    Terraform   = "true"
+  }
 }
