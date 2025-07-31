@@ -28,38 +28,6 @@ module "vpc" {
 }
 
 # ----------------------------
-# IAM Role for Terraform User
-# ----------------------------
-resource "aws_iam_role" "eks_access_role" {
-  name = "eks-access-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        AWS = "arn:aws:iam::585768155983:user/terraform-user"
-      }
-      Action = "sts:AssumeRole"
-    }]
-  })
-
-  tags = {
-    Name = "eks-access-role"
-  }
-}
-
-resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
-  role       = aws_iam_role.eks_access_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "eks_service_policy" {
-  role       = aws_iam_role.eks_access_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
-}
-
-# ----------------------------
 # EKS
 # ----------------------------
 module "eks" {
@@ -70,6 +38,15 @@ module "eks" {
   cluster_version = var.cluster_version
   subnet_ids      = module.vpc.public_subnets
   vpc_id          = module.vpc.vpc_id
+
+  enable_cluster_creator_permission = true
+
+  access_entries = {
+    terraform-user = {
+      kubernetes_groups = ["system:masters"]
+      principal_arn     = "arn:aws:iam::585768155983:user/terraform-user"
+    }
+  }
 
   cluster_enabled_log_types     = []
   create_cloudwatch_log_group   = false
@@ -102,31 +79,6 @@ module "eks" {
 }
 
 # ----------------------------
-# aws-auth configmap
-# ----------------------------
-module "eks_aws_auth" {
-  source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
-  version = "20.23.0"
-
-  manage_aws_auth_configmap = true
-
-  aws_auth_roles = [
-    {
-      rolearn  = aws_iam_role.eks_access_role.arn
-      username = "eks-access-role"
-      groups   = ["system:masters"]
-    },
-    {
-      rolearn  = "arn:aws:iam::585768155983:user/terraform-user"
-      username = "terraform-user"
-      groups   = ["system:masters"]
-    }
-  ]
-
-  depends_on = [module.eks]
-}
-
-# ----------------------------
 # Kubernetes Provider
 # ----------------------------
 provider "kubernetes" {
@@ -139,7 +91,7 @@ provider "kubernetes" {
     args = [
       "eks", "get-token",
       "--cluster-name", module.eks.cluster_name,
-      "--role-arn", aws_iam_role.eks_access_role.arn
+      "--region", var.region
     ]
   }
 }
