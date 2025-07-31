@@ -44,14 +44,7 @@ module "eks" {
 
   enable_irsa = true
 
-  aws_auth_roles = [
-    {
-      rolearn  = aws_iam_role.eks_access_role.arn
-      username = "eks-access-role"
-      groups   = ["system:masters"]
-    }
-  ]
-
+ 
   authentication_mode = "API"
 
   eks_managed_node_groups = {
@@ -72,6 +65,22 @@ module "eks" {
     Environment = var.environment
     Terraform   = "true"
   }
+}
+
+module "eks_aws_auth" {
+  source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
+  version = "20.23.0"
+
+  manage_aws_auth_configmap = true
+  cluster_name              = module.eks.cluster_name
+
+  aws_auth_roles = [
+    {
+      rolearn  = aws_iam_role.eks_access_role.arn
+      username = "eks-access-role"
+      groups   = ["system:masters"]
+    }
+  ]
 }
 
 # Role que terraform-user puede asumir para acceder al cluster EKS
