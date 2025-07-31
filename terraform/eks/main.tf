@@ -39,8 +39,7 @@ module "eks" {
   subnet_ids      = module.vpc.public_subnets
   vpc_id          = module.vpc.vpc_id
 
-  enable_cluster_creator_permission = true
-
+ 
   access_entries = {
     terraform-user = {
       kubernetes_groups = ["system:masters"]
