@@ -39,14 +39,6 @@ module "eks" {
   subnet_ids      = module.vpc.public_subnets
   vpc_id          = module.vpc.vpc_id
 
- 
-  access_entries = {
-    terraform-user = {
-      kubernetes_groups = ["system:masters"]
-      principal_arn     = "arn:aws:iam::585768155983:user/terraform-user"
-    }
-  }
-
   cluster_enabled_log_types     = []
   create_cloudwatch_log_group   = false
   create_kms_key                = false
@@ -75,6 +67,26 @@ module "eks" {
     Environment = var.environment
     Terraform   = "true"
   }
+}
+
+# ----------------------------
+# AWS AUTH (permisos admin para terraform-user)
+# ----------------------------
+module "eks_aws_auth" {
+  source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
+  version = "20.23.0"
+
+  manage_aws_auth_configmap = true
+
+  aws_auth_users = [
+    {
+      userarn  = "arn:aws:iam::585768155983:user/terraform-user"
+      username = "terraform-user"
+      groups   = ["system:masters"]
+    }
+  ]
+
+  depends_on = [module.eks]
 }
 
 # ----------------------------
