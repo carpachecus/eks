@@ -72,8 +72,7 @@ module "eks_aws_auth" {
   version = "20.23.0"
 
   manage_aws_auth_configmap = true
-  cluster_name              = module.eks.cluster_name
-
+ 
   aws_auth_roles = [
     {
       rolearn  = aws_iam_role.eks_access_role.arn
