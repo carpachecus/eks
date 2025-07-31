@@ -2,6 +2,20 @@ provider "aws" {
   region = var.region
 }
 
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  token                  = data.aws_eks_cluster_auth.cluster.token
+}
+
+data "aws_eks_cluster" "cluster" {
+  name = module.eks.cluster_name
+}
+
+data "aws_eks_cluster_auth" "cluster" {
+  name = module.eks.cluster_name
+}
+
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.1.2"
@@ -12,17 +26,45 @@ module "vpc" {
   azs             = ["us-east-1a", "us-east-1b"]
   public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
 
-  enable_nat_gateway = false
-  single_nat_gateway = false
-  enable_dns_support = true
-  enable_dns_hostnames = true
-
-   map_public_ip_on_launch = true 
+  enable_nat_gateway     = false
+  single_nat_gateway     = false
+  enable_dns_support     = true
+  enable_dns_hostnames   = true
+  map_public_ip_on_launch = true 
 
   tags = {
     Environment = var.environment
     Terraform   = "true"
   }
+}
+
+resource "aws_iam_role" "eks_access_role" {
+  name = "eks-access-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        AWS = "arn:aws:iam::585768155983:user/terraform-user" # Ajusta si es otro
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+
+  tags = {
+    Name = "eks-access-role"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
+  role       = aws_iam_role.eks_access_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "eks_service_policy" {
+  role       = aws_iam_role.eks_access_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
 }
 
 module "eks" {
@@ -42,9 +84,7 @@ module "eks" {
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = false
 
-  enable_irsa = true
-
- 
+  enable_irsa         = true
   authentication_mode = "API"
 
   eks_managed_node_groups = {
@@ -72,7 +112,7 @@ module "eks_aws_auth" {
   version = "20.23.0"
 
   manage_aws_auth_configmap = true
- 
+
   aws_auth_roles = [
     {
       rolearn  = aws_iam_role.eks_access_role.arn
@@ -80,35 +120,4 @@ module "eks_aws_auth" {
       groups   = ["system:masters"]
     }
   ]
-}
-
-# Role que terraform-user puede asumir para acceder al cluster EKS
-resource "aws_iam_role" "eks_access_role" {
-  name = "eks-access-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        AWS = "arn:aws:iam::585768155983:user/terraform-user" # Reemplaza si usas otro nombre
-      }
-      Action = "sts:AssumeRole"
-    }]
-  })
-
-  tags = {
-    Name = "eks-access-role"
-  }
-}
-
-# Permisos para operar el cluster EKS
-resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
-  role       = aws_iam_role.eks_access_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "eks_service_policy" {
-  role       = aws_iam_role.eks_access_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
 }
