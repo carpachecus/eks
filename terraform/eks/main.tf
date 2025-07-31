@@ -70,15 +70,15 @@ module "eks" {
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = false
 
-  enable_irsa           = true
-  authentication_mode   = "API"
+  enable_irsa         = true
+  authentication_mode = "API"
 
   eks_managed_node_groups = {
     default = {
-      desired_size    = 2
-      max_size        = 3
-      min_size        = 1
-      instance_types  = ["t3.medium"]
+      desired_size   = 2
+      max_size       = 3
+      min_size       = 1
+      instance_types = ["t3.medium"]
 
       iam_role_additional_policies = {
         AmazonEC2ContainerRegistryReadOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
@@ -106,6 +106,14 @@ module "eks_aws_auth" {
     }
   ]
 
+  access_entries = [
+    {
+      user_name = "terraform-user"
+      user_arn  = "arn:aws:iam::585768155983:user/terraform-user"
+      groups    = ["system:masters"]
+    }
+  ]
+
   depends_on = [module.eks]
 }
 
@@ -115,7 +123,7 @@ provider "kubernetes" {
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = [
+    args = [
       "eks", "get-token",
       "--cluster-name", module.eks.cluster_name,
       "--role-arn", aws_iam_role.eks_access_role.arn
