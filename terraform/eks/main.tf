@@ -106,13 +106,19 @@ module "eks_aws_auth" {
     }
   ]
 
-  access_entries = [
-    {
-      user_name = "terraform-user"
-      user_arn  = "arn:aws:iam::585768155983:user/terraform-user"
-      groups    = ["system:masters"]
-    }
-  ]
+ aws_auth_roles = [
+  {
+    rolearn  = aws_iam_role.eks_access_role.arn
+    username = "eks-access-role"
+    groups   = ["system:masters"]
+  },
+  {
+    rolearn  = "arn:aws:iam::585768155983:user/terraform-user"
+    username = "terraform-user"
+    groups   = ["system:masters"]
+  }
+]
+
 
   depends_on = [module.eks]
 }
