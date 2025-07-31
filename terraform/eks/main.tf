@@ -24,8 +24,7 @@ module "vpc" {
   }
 }
 
-resource "aws_iam_role" "eks_access_role" {
-  name = "eks-access-role"
+
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -101,7 +100,7 @@ module "eks_aws_auth" {
  
  aws_auth_roles = [
   {
-    rolearn  = aws_iam_role.eks_access_role.arn
+    rolearn  = "arn:aws:iam::585768155983:role/eks-access-role"
     username = "eks-access-role"
     groups   = ["system:masters"]
   },
