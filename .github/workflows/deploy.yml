@@ -43,56 +43,10 @@ jobs:
         working-directory: terraform/eks
         run: terraform init
 
-      - name: Terraform Plan
-        id: tfplan
+      - name: Terraform Apply
         working-directory: terraform/eks
-        continue-on-error: true
-        run: |
-          terraform plan -out=tfplan || echo "No changes to apply"
-
-      - name: Remove existing IAM OIDC Provider if it exists
-        run: |
-          set -euo pipefail
-          echo "Verificando existencia del OIDC  Provider del clúster '$CLUSTER_NAME' en '$AWS_REGION'..."
-          OIDC_URL=$(aws eks describe-cluster \
-            --region "$AWS_REGION" \
-            --name "$CLUSTER_NAME" \
-            --query "cluster.identity.oidc.issuer" \
-            --output text || echo "")
-          if [[ -z "$OIDC_URL" ]]; then
-            echo "❌ No se pudo obtener el OIDC URL del  clúster  (posiblemente aún no creado). Saliendo sin acción."
-            exit 0
-          fi
-          OIDC_SUFFIX=$(echo "$OIDC_URL" | sed 's|https://||')
-          EXISTING_OIDC_ARNS=$(aws iam list-open-id-connect-providers \
-            --query "OpenIDConnectProviderList[].Arn" \
-            --output text | grep "$OIDC_SUFFIX" || true)
-          if [[ -n "$EXISTING_OIDC_ARNS" ]]; then
-            echo "⚠️ Se encontraron OIDC Providers existentes:"
-            echo "$EXISTING_OIDC_ARNS"
-            for arn in $EXISTING_OIDC_ARNS; do
-              echo "🔄 Eliminando  $arn ..."
-              aws iam delete-open-id-connect-provider --open-id-connect-provider-arn "$arn" || echo "⚠️ No se pudo eliminar $arn (posiblemente ya fue eliminado)"
-            done
-            echo "✅ Todos los OIDC Providers eliminados (si existían)."
-          else
-            echo "✅ No hay OIDC Provider duplicado.  Continuando..."
-          fi
-        env:
-          CLUSTER_NAME: hello-app-cluster
-          AWS_REGION: us-east-1
-
-      - name: Terraform Apply Plan
-        working-directory: terraform/eks
-        run: |
-          if [ -f tfplan ]; then
-            terraform apply -auto-approve tfplan
-          else
-            echo "Skipping apply. No tfplan file found (no changes)."
-          fi
-
-     
-           
+        run: terraform apply -auto-approve
+  
 
       - name: Install Helm
         uses: azure/setup-helm@v3
