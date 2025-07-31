@@ -2,6 +2,9 @@ provider "aws" {
   region = var.region
 }
 
+# ----------------------------
+# VPC
+# ----------------------------
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.1.2"
@@ -12,11 +15,11 @@ module "vpc" {
   azs            = ["us-east-1a", "us-east-1b"]
   public_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
 
-  enable_nat_gateway       = false
-  single_nat_gateway       = false
-  enable_dns_support       = true
-  enable_dns_hostnames     = true
-  map_public_ip_on_launch  = true
+  enable_nat_gateway      = false
+  single_nat_gateway      = false
+  enable_dns_support      = true
+  enable_dns_hostnames    = true
+  map_public_ip_on_launch = true
 
   tags = {
     Environment = var.environment
@@ -24,7 +27,11 @@ module "vpc" {
   }
 }
 
-
+# ----------------------------
+# IAM Role for Terraform User
+# ----------------------------
+resource "aws_iam_role" "eks_access_role" {
+  name = "eks-access-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -52,6 +59,9 @@ resource "aws_iam_role_policy_attachment" "eks_service_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
 }
 
+# ----------------------------
+# EKS
+# ----------------------------
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "20.23.0"
@@ -91,33 +101,38 @@ module "eks" {
   }
 }
 
+# ----------------------------
+# aws-auth configmap
+# ----------------------------
 module "eks_aws_auth" {
   source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
   version = "20.23.0"
 
   manage_aws_auth_configmap = true
 
- 
- aws_auth_roles = [
-  {
-    rolearn  = "arn:aws:iam::585768155983:role/eks-access-role"
-    username = "eks-access-role"
-    groups   = ["system:masters"]
-  },
-  {
-    rolearn  = "arn:aws:iam::585768155983:user/terraform-user"
-    username = "terraform-user"
-    groups   = ["system:masters"]
-  }
-]
-
+  aws_auth_roles = [
+    {
+      rolearn  = aws_iam_role.eks_access_role.arn
+      username = "eks-access-role"
+      groups   = ["system:masters"]
+    },
+    {
+      rolearn  = "arn:aws:iam::585768155983:user/terraform-user"
+      username = "terraform-user"
+      groups   = ["system:masters"]
+    }
+  ]
 
   depends_on = [module.eks]
 }
 
+# ----------------------------
+# Kubernetes Provider
+# ----------------------------
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
